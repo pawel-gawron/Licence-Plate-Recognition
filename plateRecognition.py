@@ -70,12 +70,6 @@ if __name__ == '__main__':
             width_image = int(image_copy.shape[1])
             height_image = int(image_copy.shape[0])
 
-            # print(height)
-            # print(width)
-
-            # image_copy = cv2.medianBlur(image_copy, 5)
-            # image_copy = cv2.GaussianBlur(image_copy, (5, 5), 0)
-
             img_blur = cv2.GaussianBlur(image_copy, (gw, gw), gs)
             g1 = cv2.GaussianBlur(img_blur, (gw1, gw1), gs1)
             g2 = cv2.GaussianBlur(img_blur, (gw2, gw2), gs2)
@@ -83,30 +77,7 @@ if __name__ == '__main__':
 
             cv2.imshow("image", thg)
 
-            # cv2.waitKey(0)
-                
-            # # closing all open windows
-            # cv2.destroyAllWindows()
-
-
-            # image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-
-            # ret, image_copy = cv2.threshold(image_copy, 150, 255, cv2.THRESH_BINARY)
-
-            # kernel = np.ones((2, 2), np.uint8)
-            # image = cv2.dilate(image, kernel, iterations=1)
-
-            # edged = cv2.Canny(image_copy, 50, 150)
-
-            # binary = cv2.bitwise_not(image_copy)
-
-            # contours, hierarchy = cv2.findContours(edged, 
-            # cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-
             contours, hierarchy = cv2.findContours(thg, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-            # image = cv2.drawContours(image, contours, -1, (0,255,255), 3)
-
-            # print(len(contours))
             res = 0
 
             rects = [] 
@@ -130,24 +101,25 @@ if __name__ == '__main__':
                         rect = cv2.minAreaRect(contours[i])
                         box = cv2.boxPoints(rect)
                         box = np.intp(box)
-                        image = cv2.drawContours(image,[box],0,(0,255,255),2)
+                        image = cv2.drawContours(image,[box],0,(0,255,255),1)
                         # image = cv2.drawContours(image,[contours[i]],0,(255,255,0),2)
                         # mask = cv2.drawContours(mask,[contours[i]],0,(255,255,0),2)
-                        mask = cv2.drawContours(mask,[box],0,(255,255,255),2)
+                        mask = cv2.drawContours(mask,[box],0,(255,255,255),1)
                         out[mask == 255] = image[mask == 255]
                         cv2.putText(image, "rectangle "+str(x)+" , " +str(y-5), (x, y-5), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0))
                         # print("contours[i]: ", contours[i])
 
                         # Now crop
-                        (y, x, z) = np.where(mask == 255)
+                        (y, x, _) = np.where(mask == 255)
                         (topy, topx) = (np.min(y), np.min(x))
                         (bottomy, bottomx) = (np.max(y), np.max(x))
                         out2 = out[topy:bottomy+1, topx:bottomx+1]
+
                         image_show = out2.copy()
                         out2 = cv2.cvtColor(out2,cv2.COLOR_BGR2GRAY)
 
                         out2 = np.float32(out2)
-                        dst = cv2.cornerHarris(out2,2,3,0.04)
+                        dst = cv2.cornerHarris(out2,20,21,0.04)
                         #result is dilated for marking the corners, not important
                         dst = cv2.dilate(dst,None)
                         ret, dst = cv2.threshold(dst,0.01*dst.max(),255,0)
@@ -160,15 +132,67 @@ if __name__ == '__main__':
                         # Threshold for an optimal value, it may vary depending on the image.
 
                         # Now draw them
-                        res = np.hstack((centroids,corners))
-                        res = np.intp(res)
-                        print("res: ", res[:,3])
-                        image_show[res[:,1],res[:,0]]=[0,0,255]
-                        image_show[res[:,3],res[:,2]] = [0,255,0]
+                        corners = np.intp(corners)
+                        image_show[corners[:,1],corners[:,0]] = [0,255,0]
+                        print("corners: ", corners[:,:])
 
-                        # image_show[dst>0.01*dst.max()]=[0,0,255]
+                        width_image_show = int(image_show.shape[1])
+                        height_image_show = int(image_show.shape[0])
 
-                        cv2.imshow("image crop", image_show)
+                        rmsd = 0
+
+                        for i in range(len(corners)):
+                            print(corners[i])
+
+
+                        points_left_up_x = np.where(corners[:,0] < width_image_show/2)
+                        points_left_up_y = np.where(corners[:,1] < height_image_show/2)
+
+                        points_right_up_x = np.where(corners[:,0] > width_image_show/2)
+                        points_right_up_y = np.where(corners[:,1] < height_image_show/2)
+
+                        points_left_down_x = np.where(corners[:,0] < width_image_show/2)
+                        points_left_down_y = np.where(corners[:,1] > height_image_show/2)
+
+                        points_right_down_x = np.where(corners[:,0] > width_image_show/2)
+                        points_right_down_y = np.where(corners[:,1] > height_image_show/2)
+
+
+                        print("where x: ", points_left_up_x)
+                        print("where y: ", points_left_up_y)
+
+                        print("where x: ", points_right_up_x)
+                        print("where y: ", points_right_up_y)
+
+                        print("where x: ", points_left_down_x)
+                        print("where y: ", points_left_down_y)
+
+                        print("where x: ", points_right_down_x)
+                        print("where y: ", points_right_down_y)
+
+                        point_left_up = np.intersect1d(points_left_up_x, points_left_up_y)
+                        point_right_up = np.intersect1d(points_right_up_x, points_right_up_y)
+                        point_left_down = np.intersect1d(points_left_down_x, points_left_down_y)
+                        point_right_down = np.intersect1d(points_right_down_x, points_right_down_y)
+
+                        print("point_left_up: ", point_left_up)
+
+                        print("point_left_up: ", corners[point_left_up][0])
+                        print("point_right_up: ", corners[point_right_up][0])
+                        print("point_left_down: ", corners[point_left_down][0])
+                        print("point_right_down: ", corners[point_right_down][0])
+
+                        points = np.array([corners[point_left_up][0], corners[point_right_up][0], corners[point_left_down][0], corners[point_right_down][0]])
+
+                        pts1 = np.float32([points[0], points[1], points[2], points[3]])
+                        print("pts1: ", pts1)
+                        pts2 = np.float32([[0,0],[width_image_show,0],[0,height_image_show],[width_image_show,height_image_show]])
+                        M = cv2.getPerspectiveTransform(pts1,pts2)
+                        dst = cv2.warpPerspective(image[topy:bottomy+1, topx:bottomx+1],M,(width_image_show,height_image_show))
+
+                        cv2.imshow("image perspective transform", image_show)
+                        cv2.imshow("image crop", dst)
+                        
 
             cv2.imshow("image final", image)
 
@@ -178,37 +202,6 @@ if __name__ == '__main__':
                 # ESC pressed
                 print("Escape hit, closing...")
                 break
-                # polygon = cv2.approxPolyDP(contour, 0.01 * cv2.arcLength(contour, True), True)
-
-                # if len(polygon) == 4: 
-                #     rects.append(polygon)
-                # (x,y,w,h) = cv2.boundingRect(contour)
-                # cv2.rectangle(image, (x,y), (x+w,y+h), (0,255,0), 2)
-                # x1,y1 = contour[0][0]
-                # approx = cv2.approxPolyDP(contour, 0.1*cv2.arcLength(contour, True), True)
-                # # if len(approx) == 4:
-                # x, y, w, h = cv2.boundingRect(contour)
-                # ratio = float(w)/h
-                #     # if ratio >= 2.0 and ratio <= 5.0:
-                # if True:
-                #     rect = cv2.minAreaRect(contour)
-                #     box = cv2.boxPoints(rect)
-                #     box = np.int0(box)
-                #     image = cv2.drawContours(image, [box], -1, (0,255,255), 2, cv2.LINE_AA)
-                    # cv2.putText(image, 'Square', (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
-                    # else:
-                    #     cv2.putText(image, 'Rectangle', (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                    #     image = cv2.drawContours(image, [contour], -1, (0,255,0), 3)
-
-            # for rect in rects: 
-            #     cv2.drawContours(image, [rect], 0, (0, 255, 0), 2) 
-            # contours = sorted(contours, key = cv2.contourArea, reverse = True) [:30]
-
-            # cv2.drawContours(image, contours, -1, (0,0,255), 3)
-            # print(contours)
-
-            # cv2.imshow("image", image)
-            # cv2.waitKey(0)
             
         # closing all open windows
         cv2.destroyAllWindows()
