@@ -101,10 +101,10 @@ if __name__ == '__main__':
                         rect = cv2.minAreaRect(contours[i])
                         box = cv2.boxPoints(rect)
                         box = np.intp(box)
-                        image = cv2.drawContours(image,[box],0,(0,255,255),1)
-                        # image = cv2.drawContours(image,[contours[i]],0,(255,255,0),2)
-                        # mask = cv2.drawContours(mask,[contours[i]],0,(255,255,0),2)
-                        mask = cv2.drawContours(mask,[box],0,(255,255,255),1)
+                        # image = cv2.drawContours(image,[box],0,(0,255,255),1)
+                        image = cv2.drawContours(image,[contours[i]],0,(255,255,0),2)
+                        mask = cv2.drawContours(mask,[contours[i]],0,(255,255,0),2)
+                        # mask = cv2.drawContours(mask,[box],0,(255,255,255),1)
                         out[mask == 255] = image[mask == 255]
                         cv2.putText(image, "rectangle "+str(x)+" , " +str(y-5), (x, y-5), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0))
                         # print("contours[i]: ", contours[i])
@@ -134,58 +134,36 @@ if __name__ == '__main__':
                         # Now draw them
                         corners = np.intp(corners)
                         image_show[corners[:,1],corners[:,0]] = [0,255,0]
-                        print("corners: ", corners[:,:])
+                        # print("corners: ", corners[:,:])
 
                         width_image_show = int(image_show.shape[1])
                         height_image_show = int(image_show.shape[0])
 
                         rmsd = 0
+                        rmsd_dict = {}
+                        points_dict = {}
+                        rmsd_static_points = np.array([[0,0], [width_image_show,0], [0, height_image_show], [width_image_show, height_image_show]])
 
-                        for i in range(len(corners)):
-                            print(corners[i])
+                        print("corners: ")
+                        print(corners)
+                        print(np.sqrt(width_image_show**2 + height_image_show**2))
+                        print(width_image_show)
+                        print(height_image_show)
 
+                        for point in range(4):
+                            model_point = rmsd_static_points[point]
+                            for i in range(len(corners)):
+                                rmsd_corner = (0-np.sqrt((corners[i, 0] - model_point[0])**2 + (corners[i, 1] - model_point[1])**2))**2
+                                rmsd_dict[tuple(corners[i])] = np.sqrt(rmsd_corner/1)
 
-                        points_left_up_x = np.where(corners[:,0] < width_image_show/2)
-                        points_left_up_y = np.where(corners[:,1] < height_image_show/2)
+                            min_rmsd = min(rmsd_dict, key=rmsd_dict.get)
+                            points_dict[point] = min_rmsd
+                        print("points_dict: ", points_dict)
 
-                        points_right_up_x = np.where(corners[:,0] > width_image_show/2)
-                        points_right_up_y = np.where(corners[:,1] < height_image_show/2)
-
-                        points_left_down_x = np.where(corners[:,0] < width_image_show/2)
-                        points_left_down_y = np.where(corners[:,1] > height_image_show/2)
-
-                        points_right_down_x = np.where(corners[:,0] > width_image_show/2)
-                        points_right_down_y = np.where(corners[:,1] > height_image_show/2)
-
-
-                        print("where x: ", points_left_up_x)
-                        print("where y: ", points_left_up_y)
-
-                        print("where x: ", points_right_up_x)
-                        print("where y: ", points_right_up_y)
-
-                        print("where x: ", points_left_down_x)
-                        print("where y: ", points_left_down_y)
-
-                        print("where x: ", points_right_down_x)
-                        print("where y: ", points_right_down_y)
-
-                        point_left_up = np.intersect1d(points_left_up_x, points_left_up_y)
-                        point_right_up = np.intersect1d(points_right_up_x, points_right_up_y)
-                        point_left_down = np.intersect1d(points_left_down_x, points_left_down_y)
-                        point_right_down = np.intersect1d(points_right_down_x, points_right_down_y)
-
-                        print("point_left_up: ", point_left_up)
-
-                        print("point_left_up: ", corners[point_left_up][0])
-                        print("point_right_up: ", corners[point_right_up][0])
-                        print("point_left_down: ", corners[point_left_down][0])
-                        print("point_right_down: ", corners[point_right_down][0])
-
-                        points = np.array([corners[point_left_up][0], corners[point_right_up][0], corners[point_left_down][0], corners[point_right_down][0]])
+                        points = np.array([points_dict[0], points_dict[1], points_dict[2], points_dict[3]])
 
                         pts1 = np.float32([points[0], points[1], points[2], points[3]])
-                        print("pts1: ", pts1)
+                        # print("pts1: ", pts1)
                         pts2 = np.float32([[0,0],[width_image_show,0],[0,height_image_show],[width_image_show,height_image_show]])
                         M = cv2.getPerspectiveTransform(pts1,pts2)
                         dst = cv2.warpPerspective(image[topy:bottomy+1, topx:bottomx+1],M,(width_image_show,height_image_show))
