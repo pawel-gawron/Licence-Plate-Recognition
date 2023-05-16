@@ -3,6 +3,17 @@ import os
 import numpy as np
 import glob
 
+import tensorflow as tf
+from tensorflow import keras
+
+# print(tf.version.VERSION)
+
+letters_recognition_model = tf.keras.models.load_model('content/content/saved_model/my_model')
+
+# Check its architecture
+# letters_recognition_model.summary()
+# np.testing.assert_allclose(letters_recognition_model(input_arr), outputs)
+
 def empty_callback(value):
     pass
 
@@ -32,6 +43,8 @@ if __name__ == '__main__':
     path = os.path.dirname(os.path.realpath(__file__))
     path = os.path.join(path + "/train/")
 
+    gw, gs, gw1, gs1, gw2, gs2 = (3, 1, 3, 2, 5, 1)
+
     for image_name in sorted(glob.glob(path + "*.jpg")):
 
         cv2.namedWindow('image', cv2.WINDOW_AUTOSIZE)
@@ -43,7 +56,13 @@ if __name__ == '__main__':
         cv2.createTrackbar('gw2', 'image', 2, 10, empty_callback)
         cv2.createTrackbar('gs2', 'image', 0, 10, empty_callback)
 
-        gw, gs, gw1, gs1, gw2, gs2 = (3, 1, 7, 2, 3, 1)
+        # setting position of 'G' trackbar to 100
+        cv2.setTrackbarPos('gw', 'image', gw)
+        cv2.setTrackbarPos('gs', 'image', gs)
+        cv2.setTrackbarPos('gw1', 'image', gw1)
+        cv2.setTrackbarPos('gs1', 'image', gs1)
+        cv2.setTrackbarPos('gw2', 'image', gw2)
+        cv2.setTrackbarPos('gs2', 'image', gs2)
 
         while True:
             dim = (800, 600)
@@ -90,8 +109,7 @@ if __name__ == '__main__':
                     continue
 
 
-                x ,y, w, h = cv2.boundingRect(contours[i])
-                a=w*h    
+                x ,y, w, h = cv2.boundingRect(contours[i]) 
                 aspectRatio = float(w)/h
                 if aspectRatio >= 1.5 and w> 0.33*width_image:          
                     approx = cv2.approxPolyDP(contours[i], 0.05* cv2.arcLength(contours[i], True), True)
@@ -113,7 +131,7 @@ if __name__ == '__main__':
                         (y, x, _) = np.where(mask == 255)
                         (topy, topx) = (np.min(y), np.min(x))
                         (bottomy, bottomx) = (np.max(y), np.max(x))
-                        out2 = out[topy:bottomy+1, topx:bottomx+1]
+                        out2 = out[topy:bottomy, topx:bottomx]
 
                         image_show = out2.copy()
                         out2 = cv2.cvtColor(out2,cv2.COLOR_BGR2GRAY)
@@ -161,15 +179,46 @@ if __name__ == '__main__':
                         print("points_dict: ", points_dict)
 
                         points = np.array([points_dict[0], points_dict[1], points_dict[2], points_dict[3]])
-
                         pts1 = np.float32([points[0], points[1], points[2], points[3]])
                         # print("pts1: ", pts1)
                         pts2 = np.float32([[0,0],[width_image_show,0],[0,height_image_show],[width_image_show,height_image_show]])
                         M = cv2.getPerspectiveTransform(pts1,pts2)
                         dst = cv2.warpPerspective(image[topy:bottomy+1, topx:bottomx+1],M,(width_image_show,height_image_show))
 
+                        dst = cv2.cvtColor(dst, cv2.COLOR_BGR2GRAY)
+                        ret3,th3 = cv2.threshold(dst,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+
+                        black_padding = [0,0,0]
+                        th3= cv2.copyMakeBorder(th3,10,10,10,10,cv2.BORDER_CONSTANT,value=black_padding)
+
+                        contours_plate, hierarchy_plate = cv2.findContours(th3, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+                        th3 = cv2.cvtColor(th3, cv2.COLOR_GRAY2BGR)
+                        print("len(contours_plate): ", len(contours_plate))
+
+                        for i in range(len(contours_plate)):
+                            # if hierarchy_plate[0][i][2] == -1:
+                            #     continue
+                            x_plate ,y_plate, w_plate, h_plate = cv2.boundingRect(contours_plate[i])
+
+                            if h_plate > dst.shape[0]/3:
+                            # cv2.rectangle(th3, (x_plate, y_plate), (x_plate + w_plate_plate, y_plate + h_plate), (0,0,255), 2) 
+                            # th3 = cv2.drawContours(th3, [contours_plate[i]],0,(0,255,0),1)
+                                letter = th3[y_plate:y_plate+h_plate, x_plate:x_plate+w_plate].copy()
+                                letter= cv2.copyMakeBorder(letter,5,5,5,5,cv2.BORDER_CONSTANT,value=black_padding)
+
+                                letter_copy = cv2.resize(letter, (32, 40), interpolation = cv2.INTER_AREA)
+                                letter_copy = cv2.cvtColor(letter_copy, cv2.COLOR_BGR2GRAY)
+                                letter_copy = np.array(letter_copy) / 255.0
+                                prediction = letters_recognition_model.predict(letter_copy[None,:,:], batch_size=1)
+                                print("prediction: ", prediction)
+
+                                # print("letterDescription: ", letterDescription)
+                                # cv2.putText(letter, letterDescription, (10, 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 0, 0))
+                                cv2.imshow("image crop letter: " + str(i), letter)
+
                         cv2.imshow("image perspective transform", image_show)
-                        cv2.imshow("image crop", dst)
+                        cv2.imshow("image crop", th3)
                         
 
             cv2.imshow("image final", image)
