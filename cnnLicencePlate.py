@@ -85,7 +85,7 @@ for digit in digits:
 data = np.array(data, dtype='float32')
 labels = np.array(labels, dtype='int8')
 
-print(data.shape)
+print("labels: ", labels)
 
 data = data / 255.0
 data = data.reshape(*data.shape, 1)
@@ -93,8 +93,6 @@ labels = to_categorical(labels, num_classes=NUM_CLASSES)
 
 X_train, X_test, y_train, y_test = train_test_split(data, labels, shuffle=True, test_size=.3)
 X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, shuffle=True, test_size=.3)
-
-print(X_test.shape())
 
 print("Training dataset shape: ", X_train.shape, y_train.shape)
 print("Validation dataset shape: ", X_val.shape, y_val.shape)
@@ -174,9 +172,18 @@ model2.compile(loss='categorical_crossentropy',
        optimizer=tf.keras.optimizers.Adam(learning_rate=1e-4),
        metrics=['accuracy'])
 
+checkpoint_path = "content/training_1/cp.ckpt"
+checkpoint_dir = os.path.dirname(checkpoint_path)
+
+# Create a callback that saves the model's weights
+cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
+                                                 save_weights_only=True,
+                                                 verbose=1)
+
 history2 = model2.fit(X_train, y_train,
-                    epochs=5, batch_size=256,
-                    validation_data=(X_val, y_val))
+                    epochs=15, batch_size=256,
+                    validation_data=(X_val, y_val),
+                    callbacks=[cp_callback])
 
 hist=history2.history
 plt.plot(hist["accuracy"],color="b",label="train_accuracy")
@@ -187,3 +194,6 @@ plt.show()
 model2.evaluate(X_val,y_val)
 
 model2.evaluate(X_test,y_test)
+
+# Save the entire model as a SavedModel.
+model2.save('content/saved_model/my_model')

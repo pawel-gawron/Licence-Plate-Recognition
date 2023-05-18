@@ -8,7 +8,7 @@ from tensorflow import keras
 
 # print(tf.version.VERSION)
 
-letters_recognition_model = tf.keras.models.load_model('content/content/saved_model/my_model')
+letters_recognition_model = tf.keras.models.load_model('content/saved_model/my_model')
 
 # Check its architecture
 # letters_recognition_model.summary()
@@ -45,6 +45,8 @@ if __name__ == '__main__':
 
     gw, gs, gw1, gs1, gw2, gs2 = (3, 1, 3, 2, 5, 1)
 
+    letterLabels = np.array(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'])
+
     for image_name in sorted(glob.glob(path + "*.jpg")):
 
         cv2.namedWindow('image', cv2.WINDOW_AUTOSIZE)
@@ -65,9 +67,13 @@ if __name__ == '__main__':
         cv2.setTrackbarPos('gs2', 'image', gs2)
 
         while True:
-            dim = (800, 600)
-
             image = cv2.imread(image_name)
+
+            image_ratio = image.shape[1]/image.shape[0]
+
+            dim = (800, int(800 / image_ratio))
+
+            print("image_ratio: ", image_ratio)
 
             gw = on_blockSize_trackbar(cv2.getTrackbarPos('gw', 'image'), 'gw')
             gs = cv2.getTrackbarPos('gs', 'image')
@@ -96,12 +102,15 @@ if __name__ == '__main__':
 
             cv2.imshow("image", thg)
 
-            contours, hierarchy = cv2.findContours(thg, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            contours, hierarchy = cv2.findContours(thg, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
             res = 0
 
             rects = [] 
             end_x=0 
             end_y=0
+
+            print("len(contours): ", len(contours))
+
 
             for i in range(len(contours)):
 
@@ -111,7 +120,7 @@ if __name__ == '__main__':
 
                 x ,y, w, h = cv2.boundingRect(contours[i]) 
                 aspectRatio = float(w)/h
-                if aspectRatio >= 1.5 and w> 0.33*width_image:          
+                if aspectRatio >= 1.5 and w> 0.33*width_image and aspectRatio <= 5:          
                     approx = cv2.approxPolyDP(contours[i], 0.05* cv2.arcLength(contours[i], True), True)
                     if len(approx) == 4:
                         end_x=x+w
@@ -119,106 +128,114 @@ if __name__ == '__main__':
                         rect = cv2.minAreaRect(contours[i])
                         box = cv2.boxPoints(rect)
                         box = np.intp(box)
-                        # image = cv2.drawContours(image,[box],0,(0,255,255),1)
-                        image = cv2.drawContours(image,[contours[i]],0,(255,255,0),2)
-                        mask = cv2.drawContours(mask,[contours[i]],0,(255,255,0),2)
-                        # mask = cv2.drawContours(mask,[box],0,(255,255,255),1)
-                        out[mask == 255] = image[mask == 255]
-                        cv2.putText(image, "rectangle "+str(x)+" , " +str(y-5), (x, y-5), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0))
-                        # print("contours[i]: ", contours[i])
 
-                        # Now crop
-                        (y, x, _) = np.where(mask == 255)
-                        (topy, topx) = (np.min(y), np.min(x))
-                        (bottomy, bottomx) = (np.max(y), np.max(x))
-                        out2 = out[topy:bottomy, topx:bottomx]
+                        area = cv2.contourArea(contours[i])
 
-                        image_show = out2.copy()
-                        out2 = cv2.cvtColor(out2,cv2.COLOR_BGR2GRAY)
+                        if area >= 15000 and area <=60000:
+                            # image = cv2.drawContours(image,[box],0,(0,255,255),1)
+                            image = cv2.drawContours(image,[contours[i]],0,(255,255,0),2)
+                            mask = cv2.drawContours(mask,[contours[i]],0,(255,255,0),2)
+                            # mask = cv2.drawContours(mask,[box],0,(255,255,255),1)
+                            out[mask == 255] = image[mask == 255]
+                            cv2.putText(image, "rectangle "+str(x)+" , " +str(y-5), (x, y-5), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0))
+                            # print("contours[i]: ", contours[i])
 
-                        out2 = np.float32(out2)
-                        dst = cv2.cornerHarris(out2,20,21,0.04)
-                        #result is dilated for marking the corners, not important
-                        dst = cv2.dilate(dst,None)
-                        ret, dst = cv2.threshold(dst,0.01*dst.max(),255,0)
-                        dst = np.uint8(dst)
+                            # Now crop
+                            (y, x, _) = np.where(mask == 255)
+                            (topy, topx) = (np.min(y), np.min(x))
+                            (bottomy, bottomx) = (np.max(y), np.max(x))
+                            out2 = out[topy:bottomy, topx:bottomx]
 
-                        # find centroids
-                        ret, labels, stats, centroids = cv2.connectedComponentsWithStats(dst)
-                        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.001)
-                        corners = cv2.cornerSubPix(out2,np.float32(centroids),(5,5),(-1,-1),criteria)
-                        # Threshold for an optimal value, it may vary depending on the image.
+                            image_show = out2.copy()
+                            out2 = cv2.cvtColor(out2,cv2.COLOR_BGR2GRAY)
 
-                        # Now draw them
-                        corners = np.intp(corners)
-                        image_show[corners[:,1],corners[:,0]] = [0,255,0]
-                        # print("corners: ", corners[:,:])
+                            out2 = np.float32(out2)
+                            dst = cv2.cornerHarris(out2,20,21,0.04)
+                            #result is dilated for marking the corners, not important
+                            dst = cv2.dilate(dst,None)
+                            ret, dst = cv2.threshold(dst,0.01*dst.max(),255,0)
+                            dst = np.uint8(dst)
 
-                        width_image_show = int(image_show.shape[1])
-                        height_image_show = int(image_show.shape[0])
+                            # find centroids
+                            ret, labels, stats, centroids = cv2.connectedComponentsWithStats(dst)
+                            criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.001)
+                            corners = cv2.cornerSubPix(out2,np.float32(centroids),(5,5),(-1,-1),criteria)
+                            # Threshold for an optimal value, it may vary depending on the image.
 
-                        rmsd = 0
-                        rmsd_dict = {}
-                        points_dict = {}
-                        rmsd_static_points = np.array([[0,0], [width_image_show,0], [0, height_image_show], [width_image_show, height_image_show]])
+                            # Now draw them
+                            corners = np.intp(corners)
+                            image_show[corners[:,1],corners[:,0]] = [0,255,0]
+                            # print("corners: ", corners[:,:])
 
-                        print("corners: ")
-                        print(corners)
-                        print(np.sqrt(width_image_show**2 + height_image_show**2))
-                        print(width_image_show)
-                        print(height_image_show)
+                            width_image_show = int(image_show.shape[1])
+                            height_image_show = int(image_show.shape[0])
 
-                        for point in range(4):
-                            model_point = rmsd_static_points[point]
-                            for i in range(len(corners)):
-                                rmsd_corner = (0-np.sqrt((corners[i, 0] - model_point[0])**2 + (corners[i, 1] - model_point[1])**2))**2
-                                rmsd_dict[tuple(corners[i])] = np.sqrt(rmsd_corner/1)
+                            rmsd = 0
+                            rmsd_dict = {}
+                            points_dict = {}
+                            rmsd_static_points = np.array([[0,0], [width_image_show,0], [0, height_image_show], [width_image_show, height_image_show]])
 
-                            min_rmsd = min(rmsd_dict, key=rmsd_dict.get)
-                            points_dict[point] = min_rmsd
-                        print("points_dict: ", points_dict)
+                            for point in range(4):
+                                model_point = rmsd_static_points[point]
+                                for i in range(len(corners)):
+                                    rmsd_corner = (0-np.sqrt((corners[i, 0] - model_point[0])**2 + (corners[i, 1] - model_point[1])**2))**2
+                                    rmsd_dict[tuple(corners[i])] = np.sqrt(rmsd_corner/1)
 
-                        points = np.array([points_dict[0], points_dict[1], points_dict[2], points_dict[3]])
-                        pts1 = np.float32([points[0], points[1], points[2], points[3]])
-                        # print("pts1: ", pts1)
-                        pts2 = np.float32([[0,0],[width_image_show,0],[0,height_image_show],[width_image_show,height_image_show]])
-                        M = cv2.getPerspectiveTransform(pts1,pts2)
-                        dst = cv2.warpPerspective(image[topy:bottomy+1, topx:bottomx+1],M,(width_image_show,height_image_show))
+                                min_rmsd = min(rmsd_dict, key=rmsd_dict.get)
+                                points_dict[point] = min_rmsd
+                            print("points_dict: ", points_dict)
 
-                        dst = cv2.cvtColor(dst, cv2.COLOR_BGR2GRAY)
-                        ret3,th3 = cv2.threshold(dst,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+                            points = np.array([points_dict[0], points_dict[1], points_dict[2], points_dict[3]])
+                            pts1 = np.float32([points[0], points[1], points[2], points[3]])
+                            # print("pts1: ", pts1)
+                            pts2 = np.float32([[0,0],[width_image_show,0],[0,height_image_show],[width_image_show,height_image_show]])
+                            M = cv2.getPerspectiveTransform(pts1,pts2)
+                            dst = cv2.warpPerspective(image[topy:bottomy+1, topx:bottomx+1],M,(width_image_show,height_image_show))
 
-                        black_padding = [0,0,0]
-                        th3= cv2.copyMakeBorder(th3,10,10,10,10,cv2.BORDER_CONSTANT,value=black_padding)
+                            dst = cv2.cvtColor(dst, cv2.COLOR_BGR2GRAY)
+                            ret3,th3 = cv2.threshold(dst,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
 
-                        contours_plate, hierarchy_plate = cv2.findContours(th3, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+                            black_padding = [0,0,0]
+                            # th3= cv2.copyMakeBorder(th3,10,10,10,10,cv2.BORDER_CONSTANT,value=black_padding)
 
-                        th3 = cv2.cvtColor(th3, cv2.COLOR_GRAY2BGR)
-                        print("len(contours_plate): ", len(contours_plate))
+                            contours_plate, hierarchy_plate = cv2.findContours(th3, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
-                        for i in range(len(contours_plate)):
-                            # if hierarchy_plate[0][i][2] == -1:
-                            #     continue
-                            x_plate ,y_plate, w_plate, h_plate = cv2.boundingRect(contours_plate[i])
+                            boundingBoxes = [cv2.boundingRect(c) for c in contours_plate]
 
-                            if h_plate > dst.shape[0]/3:
-                            # cv2.rectangle(th3, (x_plate, y_plate), (x_plate + w_plate_plate, y_plate + h_plate), (0,0,255), 2) 
-                            # th3 = cv2.drawContours(th3, [contours_plate[i]],0,(0,255,0),1)
-                                letter = th3[y_plate:y_plate+h_plate, x_plate:x_plate+w_plate].copy()
-                                letter= cv2.copyMakeBorder(letter,5,5,5,5,cv2.BORDER_CONSTANT,value=black_padding)
+                            if len(contours_plate) != 0:
+                                (contours_plate, boundingBoxes) = zip(*sorted(zip(contours_plate, boundingBoxes),
+                                                                    key=lambda b:b[1][0], reverse=False))
 
-                                letter_copy = cv2.resize(letter, (32, 40), interpolation = cv2.INTER_AREA)
-                                letter_copy = cv2.cvtColor(letter_copy, cv2.COLOR_BGR2GRAY)
-                                letter_copy = np.array(letter_copy) / 255.0
-                                prediction = letters_recognition_model.predict(letter_copy[None,:,:], batch_size=1)
-                                print("prediction: ", prediction)
+                            finalLetters = []
+                            th3 = cv2.cvtColor(th3, cv2.COLOR_GRAY2BGR)
 
-                                # print("letterDescription: ", letterDescription)
-                                # cv2.putText(letter, letterDescription, (10, 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 0, 0))
-                                cv2.imshow("image crop letter: " + str(i), letter)
+                            for i in range(len(contours_plate)):
+                                # if hierarchy_plate[0][i][2] == -1:
+                                #     continue
+                                x_plate ,y_plate, w_plate, h_plate = cv2.boundingRect(contours_plate[i])
 
-                        cv2.imshow("image perspective transform", image_show)
-                        cv2.imshow("image crop", th3)
+                                if h_plate > dst.shape[0]/3:
+                                # cv2.rectangle(th3, (x_plate, y_plate), (x_plate + w_plate_plate, y_plate + h_plate), (0,0,255), 2) 
+                                # th3 = cv2.drawContours(th3, [contours_plate[i]],0,(0,255,0),1)
+                                    letter = dst[y_plate:y_plate+h_plate, x_plate:x_plate+w_plate].copy()
+                                    # letter= cv2.copyMakeBorder(letter,5,5,5,5,cv2.BORDER_CONSTANT,value=black_padding)
+
+                                    letter_copy = cv2.resize(letter, (32, 40), interpolation = cv2.INTER_AREA)
+                                    # letter_copy = cv2.cvtColor(letter_copy, cv2.COLOR_BGR2GRAY)
+                                    letter_copy = np.array(letter_copy) / 255.0
+                                    prediction = letters_recognition_model.predict(letter_copy[None,:,:], batch_size=1)
+                                    y_classes = prediction.argmax(axis=-1)
+                                    # print("prediction: ", letterLabels[y_classes])
+
+                                    # print("letterDescription: ", letterDescription)
+                                    finalLetters.append(''.join(letterLabels[y_classes]))
+                                    cv2.putText(letter, str(letterLabels[y_classes]), (10, 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 0, 0))
+                                    cv2.imshow("image crop letter: " + str(i), letter)
+
+                            cv2.imshow("image perspective transform", image_show)
+                            cv2.imshow("image crop", dst)
+                            finalLetters = ''.join(map(str, finalLetters))
+                            print("finalLetters: ", finalLetters)
                         
 
             cv2.imshow("image final", image)
