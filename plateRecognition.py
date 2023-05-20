@@ -9,15 +9,15 @@ from tensorflow import keras
 # print(tf.version.VERSION)
 
 # Załaduj model TensorFlow Lite z pliku
-letters_recognition_model = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence Plate Recognition/model.tflite')
-letters_recognition_model.allocate_tensors()
+lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence Plate Recognition/model.tflite')
+lettersRecognitionModel.allocate_tensors()
 
 # Pobierz indeksy wejściowych i wyjściowych tensorów
-input_details = letters_recognition_model.get_input_details()
-output_details = letters_recognition_model.get_output_details()
-input_shape = input_details[0]['shape']
+inputDetails = lettersRecognitionModel.get_input_details()
+outputDetails = lettersRecognitionModel.get_output_details()
+inputShape = inputDetails[0]['shape']
 
-print("input_details: ", input_details)
+print("input_details: ", inputDetails)
 
 # Check its architecture
 # letters_recognition_model.summary()
@@ -52,7 +52,14 @@ if __name__ == '__main__':
     path = os.path.dirname(os.path.realpath(__file__))
     path = os.path.join(path + "/train/")
 
-    gw, gs, gw1, gs1, gw2, gs2 = (5, 2, 5, 1, 9, 17)
+    gaussianWindow = 5
+    gaussianDeviation = 2
+
+    gaussianWindow1 = 5
+    gaussianDeviation1 = 1
+
+    gaussianWindow2 = 9
+    gaussianDeviation2 = 17
 
     letterLabels = np.array(['0', '1', '2', '3', '4', '5', '6',
                              '7', '8', '9', 'A', 'B', 'C', 'D',
@@ -60,7 +67,7 @@ if __name__ == '__main__':
                              'L', 'M', 'N', 'P', 'Q', 'R', 'S',
                              'T', 'U', 'V', 'W', 'X', 'Y', 'Z'])
 
-    for image_name in sorted(glob.glob(path + "*.jpg")):
+    for imageName in sorted(glob.glob(path + "*.jpg")):
 
         cv2.namedWindow('image', cv2.WINDOW_AUTOSIZE)
 
@@ -72,46 +79,46 @@ if __name__ == '__main__':
         cv2.createTrackbar('gs2', 'image', 0, 50, empty_callback)
 
         # setting position of 'G' trackbar to 100
-        cv2.setTrackbarPos('gw', 'image', gw)
-        cv2.setTrackbarPos('gs', 'image', gs)
-        cv2.setTrackbarPos('gw1', 'image', gw1)
-        cv2.setTrackbarPos('gs1', 'image', gs1)
-        cv2.setTrackbarPos('gw2', 'image', gw2)
-        cv2.setTrackbarPos('gs2', 'image', gs2)
+        cv2.setTrackbarPos('gw', 'image', gaussianWindow)
+        cv2.setTrackbarPos('gs', 'image', gaussianDeviation)
+        cv2.setTrackbarPos('gw1', 'image', gaussianWindow1)
+        cv2.setTrackbarPos('gs1', 'image', gaussianDeviation1)
+        cv2.setTrackbarPos('gw2', 'image', gaussianWindow2)
+        cv2.setTrackbarPos('gs2', 'image', gaussianDeviation2)
 
         while True:
-            image = cv2.imread(image_name)
+            image = cv2.imread(imageName)
 
-            image_ratio = image.shape[1]/image.shape[0]
+            imageRatio = image.shape[1]/image.shape[0]
 
-            dim = (900, int(900 / image_ratio))
+            dim = (900, int(900 / imageRatio))
 
-            print("image_ratio: ", image_ratio)
+            print("image_ratio: ", imageRatio)
 
-            gw = on_blockSize_trackbar(cv2.getTrackbarPos('gw', 'image'), 'gw')
-            gs = cv2.getTrackbarPos('gs', 'image')
-            gw1 = on_blockSize_trackbar(cv2.getTrackbarPos('gw1', 'image'), 'gw1')
-            gs1 = cv2.getTrackbarPos('gs1', 'image')
-            gw2 = on_blockSize_trackbar(cv2.getTrackbarPos('gw2', 'image'), 'gw2')
-            gs2 = cv2.getTrackbarPos('gs2', 'image')
+            gaussianWindow = on_blockSize_trackbar(cv2.getTrackbarPos('gw', 'image'), 'gw')
+            gaussianDeviation = cv2.getTrackbarPos('gs', 'image')
+            gaussianWindow1 = on_blockSize_trackbar(cv2.getTrackbarPos('gw1', 'image'), 'gw1')
+            gaussianDeviation1 = cv2.getTrackbarPos('gs1', 'image')
+            gaussianWindow2 = on_blockSize_trackbar(cv2.getTrackbarPos('gw2', 'image'), 'gw2')
+            gaussianDeviation2 = cv2.getTrackbarPos('gs2', 'image')
 
-            image_copy = image.copy()
+            imageCopy = image.copy()
 
             image = cv2.resize(image, (dim), interpolation = cv2.INTER_AREA)
 
             mask = np.zeros_like(image) # Create mask where white is what we want, black otherwise
             out = np.zeros_like(image) # Extract out the object and place into output image
 
-            image_copy = cv2.resize(image_copy, (dim), interpolation = cv2.INTER_AREA)
-            image_copy = cv2.cvtColor(image_copy, cv2.COLOR_BGR2GRAY)
+            imageCopy = cv2.resize(imageCopy, (dim), interpolation = cv2.INTER_AREA)
+            imageCopy = cv2.cvtColor(imageCopy, cv2.COLOR_BGR2GRAY)
 
-            width_image = int(image_copy.shape[1])
-            height_image = int(image_copy.shape[0])
+            widthImage = int(imageCopy.shape[1])
+            heightImage = int(imageCopy.shape[0])
 
-            img_blur = cv2.GaussianBlur(image_copy, (gw, gw), gs)
-            g1 = cv2.GaussianBlur(img_blur, (gw1, gw1), gs1)
-            g2 = cv2.GaussianBlur(img_blur, (gw2, gw2), gs2)
-            ret, thg = cv2.threshold(g2-g1, 127, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            imgBlur = cv2.GaussianBlur(imageCopy, (gaussianWindow, gaussianWindow), gaussianDeviation)
+            gaussianBlur1 = cv2.GaussianBlur(imgBlur, (gaussianWindow1, gaussianWindow1), gaussianDeviation1)
+            gaussianBlur2 = cv2.GaussianBlur(imgBlur, (gaussianWindow2, gaussianWindow2), gaussianDeviation2)
+            ret, thg = cv2.threshold(gaussianBlur2-gaussianBlur1, 127, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
             cv2.imshow("image", thg)
 
@@ -126,7 +133,7 @@ if __name__ == '__main__':
 
                 x ,y, w, h = cv2.boundingRect(contours[i]) 
                 aspectRatio = float(w/h)
-                if aspectRatio >= 1.5 and w > 0.33*width_image and aspectRatio <= 8:          
+                if aspectRatio >= 1.5 and w > 0.33*widthImage and aspectRatio <= 8:          
                     approx = cv2.approxPolyDP(contours[i], 0.05* cv2.arcLength(contours[i], True), True)
                     if len(approx) == 4: 
                         area = cv2.contourArea(contours[i])
@@ -142,7 +149,7 @@ if __name__ == '__main__':
                             (bottomy, bottomx) = (np.max(y), np.max(x))
                             out2 = out[topy:bottomy, topx:bottomx]
 
-                            image_show = out2.copy()
+                            imageShow = out2.copy()
                             out2 = cv2.cvtColor(out2,cv2.COLOR_BGR2GRAY)
 
                             out2 = np.float32(out2)
@@ -159,72 +166,70 @@ if __name__ == '__main__':
 
                             # Now draw them
                             corners = np.intp(corners)
-                            image_show[corners[:,1],corners[:,0]] = [0,255,0]
+                            imageShow[corners[:,1],corners[:,0]] = [0,255,0]
 
-                            width_image_show = int(image_show.shape[1])
-                            height_image_show = int(image_show.shape[0])
+                            widthImageShow = int(imageShow.shape[1])
+                            heightImageShow = int(imageShow.shape[0])
 
                             rmsd = 0
-                            rmsd_dict = {}
-                            points_dict = {}
-                            rmsd_static_points = np.array([[0,0], [width_image_show,0], [0, height_image_show], [width_image_show, height_image_show]])
+                            rmsdDict = {}
+                            pointsDict = {}
+                            rmsdStaticSoints = np.array([[0,0], [widthImageShow,0], [0, heightImageShow], [widthImageShow, heightImageShow]])
 
                             for point in range(4):
-                                model_point = rmsd_static_points[point]
+                                modelPoint = rmsdStaticSoints[point]
                                 for i in range(len(corners)):
-                                    rmsd_corner = (0-np.sqrt((corners[i, 0] - model_point[0])**2 + (corners[i, 1] - model_point[1])**2))**2
-                                    rmsd_dict[tuple(corners[i])] = np.sqrt(rmsd_corner/1)
+                                    rmsdCorner = (0-np.sqrt((corners[i, 0] - modelPoint[0])**2 + (corners[i, 1] - modelPoint[1])**2))**2
+                                    rmsdDict[tuple(corners[i])] = np.sqrt(rmsdCorner/1)
 
-                                min_rmsd = min(rmsd_dict, key=rmsd_dict.get)
-                                points_dict[point] = min_rmsd
-                            print("points_dict: ", points_dict)
+                                minRmsd = min(rmsdDict, key=rmsdDict.get)
+                                pointsDict[point] = minRmsd
+                            print("points_dict: ", pointsDict)
 
-                            points = np.array([points_dict[0], points_dict[1], points_dict[2], points_dict[3]])
+                            points = np.array([pointsDict[0], pointsDict[1], pointsDict[2], pointsDict[3]])
                             pts1 = np.float32([points[0], points[1], points[2], points[3]])
-                            pts2 = np.float32([[0,0],[width_image_show,0],[0,height_image_show],[width_image_show,height_image_show]])
+                            pts2 = np.float32([[0,0],[widthImageShow,0],[0,heightImageShow],[widthImageShow,heightImageShow]])
                             M = cv2.getPerspectiveTransform(pts1,pts2)
-                            dst = cv2.warpPerspective(image[topy:bottomy+1, topx:bottomx+1],M,(width_image_show,height_image_show))
+                            dst = cv2.warpPerspective(image[topy:bottomy+1, topx:bottomx+1],M,(widthImageShow,heightImageShow))
 
                             dst = cv2.cvtColor(dst, cv2.COLOR_BGR2GRAY)
                             ret3,th3 = cv2.threshold(dst,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
 
-                            black_padding = [0,0,0]
+                            blackPadding = [0,0,0]
                             # th3= cv2.copyMakeBorder(th3,10,10,10,10,cv2.BORDER_CONSTANT,value=black_padding)
 
-                            contours_plate, hierarchy_plate = cv2.findContours(th3, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+                            contoursPlate, hierarchyPlate = cv2.findContours(th3, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
-                            boundingBoxes = [cv2.boundingRect(c) for c in contours_plate]
+                            boundingBoxes = [cv2.boundingRect(c) for c in contoursPlate]
 
-                            if len(contours_plate) != 0:
-                                (contours_plate, boundingBoxes) = zip(*sorted(zip(contours_plate, boundingBoxes),
+                            if len(contoursPlate) != 0:
+                                (contoursPlate, boundingBoxes) = zip(*sorted(zip(contoursPlate, boundingBoxes),
                                                                     key=lambda b:b[1][0], reverse=False))
 
                             finalLetters = []
                             th3 = cv2.cvtColor(th3, cv2.COLOR_GRAY2BGR)
 
-                            for i in range(len(contours_plate)):
-                                if hierarchy_plate[0][i][2] == -1:
-                                    continue
-                                x_plate ,y_plate, w_plate, h_plate = cv2.boundingRect(contours_plate[i])
+                            for i in range(len(contoursPlate)):
+                                xPlate ,yPlate, wPlate, hPlate = cv2.boundingRect(contoursPlate[i])
 
-                                if h_plate > dst.shape[0]/3:
-                                    letter = dst[y_plate:y_plate+h_plate, x_plate:x_plate+w_plate].copy()
+                                if hPlate > dst.shape[0]/3:
+                                    letter = dst[yPlate:yPlate+hPlate, xPlate:xPlate+wPlate].copy()
                                     # letter= cv2.copyMakeBorder(letter,5,5,5,5,cv2.BORDER_CONSTANT,value=black_padding)
 
-                                    letter_copy = cv2.resize(letter, (32, 40), interpolation = cv2.INTER_AREA)
-                                    letter_copy = np.array(letter_copy, dtype=np.float32) / 255.0
-                                    letter_copy = np.reshape(letter_copy, input_shape)
+                                    letterCopy = cv2.resize(letter, (32, 40), interpolation = cv2.INTER_AREA)
+                                    letterCopy = np.array(letterCopy, dtype=np.float32) / 255.0
+                                    letterCopy = np.reshape(letterCopy, inputShape)
 
-                                    prediction = letters_recognition_model.set_tensor(input_details[0]['index'], letter_copy)
-                                    letters_recognition_model.invoke()
-                                    output_data = letters_recognition_model.get_tensor(output_details[0]['index'])
-                                    y_classes = np.argmax(output_data)
+                                    prediction = lettersRecognitionModel.set_tensor(inputDetails[0]['index'], letterCopy)
+                                    lettersRecognitionModel.invoke()
+                                    outputData = lettersRecognitionModel.get_tensor(outputDetails[0]['index'])
+                                    yClasses = np.argmax(outputData)
 
-                                    finalLetters.append(''.join(letterLabels[y_classes]))
-                                    cv2.putText(letter, str(letterLabels[y_classes]), (10, 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 0, 0))
+                                    finalLetters.append(''.join(letterLabels[yClasses]))
+                                    cv2.putText(letter, str(letterLabels[yClasses]), (10, 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 0, 0))
                                     cv2.imshow("image crop letter: " + str(i), letter)
 
-                            cv2.imshow("image perspective transform", image_show)
+                            cv2.imshow("image perspective transform", imageShow)
                             cv2.imshow("image crop", dst)
                             finalLetters = ''.join(map(str, finalLetters))
                             print("finalLetters: ", finalLetters)
