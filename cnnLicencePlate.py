@@ -1,17 +1,11 @@
 # IMport Libraries
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import cv2
 
 import os
-import tensorrt
 
-import PIL
 import tensorflow as tf
-import matplotlib.image as image
-import pickle 
 
 from matplotlib.pyplot import figure, imshow, axis
 from matplotlib.image import imread
@@ -23,7 +17,7 @@ from tensorflow.keras import layers, models
 from tensorflow.keras.layers import Input, Conv2D, MaxPool2D, Dropout, Dense, BatchNormalization
 from tensorflow.keras.layers import Flatten
 from tensorflow.keras.models import Sequential
-import random
+
 from tensorflow.keras.models import Model
 from tensorflow.keras.preprocessing import image
 from keras.utils.np_utils import to_categorical
@@ -129,16 +123,19 @@ history = model.fit(X_train, y_train, epochs=20, batch_size=256,
                     validation_data=(X_val, y_val),
                     callbacks=[cp_callback])
 
-# Zapisz model w formacie TensorFlow Lite
-converter = tf.lite.TFLiteConverter.from_keras_model(model)
+# # Zapisz model w formacie TensorFlow Lite
+# converter = tf.lite.TFLiteConverter.from_keras_model(model)
 
-# Ustaw opcje kwantyzacji
-converter.optimizations = [tf.lite.Optimize.DEFAULT]
-tflite_model = converter.convert()
+# # Ustaw opcje kwantyzacji
+# converter.optimizations = [tf.lite.Optimize.DEFAULT]
+# tflite_model = converter.convert()
 
-# Zapisz model do pliku
-with open('model.tflite', 'wb') as f:
-    f.write(tflite_model)
+# # Zapisz model do pliku
+# with open('model.tflite', 'wb') as f:
+#     f.write(tflite_model)
+
+# Save the entire model as a SavedModel.
+model.save('content/saved_model/my_model')
 
 plt.plot(history.history['accuracy'], label='accuracy')
 plt.plot(history.history['val_accuracy'], label = 'val_accuracy')

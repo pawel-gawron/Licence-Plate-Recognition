@@ -8,16 +8,18 @@ from tensorflow import keras
 
 # print(tf.version.VERSION)
 
-# Załaduj model TensorFlow Lite z pliku
-lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence Plate Recognition/model.tflite')
-lettersRecognitionModel.allocate_tensors()
+# Tensorflow normal model
+letters_recognition_model = tf.keras.models.load_model('content/saved_model/my_model')
 
-# Pobierz indeksy wejściowych i wyjściowych tensorów
-inputDetails = lettersRecognitionModel.get_input_details()
-outputDetails = lettersRecognitionModel.get_output_details()
-inputShape = inputDetails[0]['shape']
+# Tensorflow lite model
+# lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence Plate Recognition/model.tflite')
+# lettersRecognitionModel.allocate_tensors()
 
-print("input_details: ", inputDetails)
+# inputDetails = lettersRecognitionModel.get_input_details()
+# outputDetails = lettersRecognitionModel.get_output_details()
+# inputShape = inputDetails[0]['shape']
+
+# print("input_details: ", inputDetails)
 
 # Check its architecture
 # letters_recognition_model.summary()
@@ -212,18 +214,23 @@ if __name__ == '__main__':
                             for i in range(len(contoursPlate)):
                                 xPlate ,yPlate, wPlate, hPlate = cv2.boundingRect(contoursPlate[i])
 
-                                if hPlate > dst.shape[0]/3:
+                                if hPlate > dst.shape[0]/3 and wPlate < dst.shape[1]/3:
                                     letter = dst[yPlate:yPlate+hPlate, xPlate:xPlate+wPlate].copy()
                                     # letter= cv2.copyMakeBorder(letter,5,5,5,5,cv2.BORDER_CONSTANT,value=black_padding)
 
                                     letterCopy = cv2.resize(letter, (32, 40), interpolation = cv2.INTER_AREA)
                                     letterCopy = np.array(letterCopy, dtype=np.float32) / 255.0
-                                    letterCopy = np.reshape(letterCopy, inputShape)
 
-                                    prediction = lettersRecognitionModel.set_tensor(inputDetails[0]['index'], letterCopy)
-                                    lettersRecognitionModel.invoke()
-                                    outputData = lettersRecognitionModel.get_tensor(outputDetails[0]['index'])
-                                    yClasses = np.argmax(outputData)
+                                    # Tensorflow normal model
+                                    prediction = letters_recognition_model.predict(letterCopy[None,:,:], batch_size=1)
+                                    yClasses = prediction.argmax(axis=-1)
+                                    # letterCopy = np.reshape(letterCopy, inputShape)
+
+                                    # Tensorflow lite model
+                                    # prediction = lettersRecognitionModel.set_tensor(inputDetails[0]['index'], letterCopy)
+                                    # lettersRecognitionModel.invoke()
+                                    # outputData = lettersRecognitionModel.get_tensor(outputDetails[0]['index'])
+                                    # yClasses = np.argmax(outputData)
 
                                     finalLetters.append(''.join(letterLabels[yClasses]))
                                     cv2.putText(letter, str(letterLabels[yClasses]), (10, 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 0, 0))
