@@ -8,16 +8,16 @@ from tensorflow import keras
 
 # print(tf.version.VERSION)
 
-# Tensorflow normal model
-letters_recognition_model = tf.keras.models.load_model('content/saved_model/my_model')
+# # Tensorflow normal model
+# lettersRecognitionModel = tf.keras.models.load_model('content/saved_model/my_model')
 
 # Tensorflow lite model
-# lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence Plate Recognition/model.tflite')
-# lettersRecognitionModel.allocate_tensors()
+lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence Plate Recognition/model.tflite')
+lettersRecognitionModel.allocate_tensors()
 
-# inputDetails = lettersRecognitionModel.get_input_details()
-# outputDetails = lettersRecognitionModel.get_output_details()
-# inputShape = inputDetails[0]['shape']
+inputDetails = lettersRecognitionModel.get_input_details()
+outputDetails = lettersRecognitionModel.get_output_details()
+inputShape = inputDetails[0]['shape']
 
 # print("input_details: ", inputDetails)
 
@@ -54,20 +54,21 @@ if __name__ == '__main__':
     path = os.path.dirname(os.path.realpath(__file__))
     path = os.path.join(path + "/train/")
 
-    gaussianWindow = 5
-    gaussianDeviation = 2
+    gaussianWindow = 7
+    gaussianDeviation = 30
 
-    gaussianWindow1 = 5
-    gaussianDeviation1 = 1
+    gaussianWindow1 = 9
+    gaussianDeviation1 = 6
 
-    gaussianWindow2 = 9
-    gaussianDeviation2 = 17
+    gaussianWindow2 = 23
+    gaussianDeviation2 = 10
 
     letterLabels = np.array(['0', '1', '2', '3', '4', '5', '6',
                              '7', '8', '9', 'A', 'B', 'C', 'D',
                              'E', 'F', 'G', 'H', 'I', 'J', 'K',
-                             'L', 'M', 'N', 'P', 'Q', 'R', 'S',
-                             'T', 'U', 'V', 'W', 'X', 'Y', 'Z'])
+                             'L', 'M', 'N', 'O', 'P', 'Q', 'R',
+                             'S', 'T', 'U', 'V', 'W', 'X', 'Y',
+                             'Z'])
 
     for imageName in sorted(glob.glob(path + "*.jpg")):
 
@@ -94,6 +95,7 @@ if __name__ == '__main__':
             imageRatio = image.shape[1]/image.shape[0]
 
             dim = (900, int(900 / imageRatio))
+            dim = (960, 720)
 
             print("image_ratio: ", imageRatio)
 
@@ -103,6 +105,10 @@ if __name__ == '__main__':
             gaussianDeviation1 = cv2.getTrackbarPos('gs1', 'image')
             gaussianWindow2 = on_blockSize_trackbar(cv2.getTrackbarPos('gw2', 'image'), 'gw2')
             gaussianDeviation2 = cv2.getTrackbarPos('gs2', 'image')
+
+            gaussianDeviation /= 10
+            gaussianDeviation1 /= 10
+            gaussianDeviation2 /= 10 
 
             imageCopy = image.copy()
 
@@ -121,6 +127,10 @@ if __name__ == '__main__':
             gaussianBlur1 = cv2.GaussianBlur(imgBlur, (gaussianWindow1, gaussianWindow1), gaussianDeviation1)
             gaussianBlur2 = cv2.GaussianBlur(imgBlur, (gaussianWindow2, gaussianWindow2), gaussianDeviation2)
             ret, thg = cv2.threshold(gaussianBlur2-gaussianBlur1, 127, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+            gaussianDeviation *= 10
+            gaussianDeviation1 *= 10
+            gaussianDeviation2 *= 10
 
             cv2.imshow("image", thg)
 
@@ -221,16 +231,16 @@ if __name__ == '__main__':
                                     letterCopy = cv2.resize(letter, (32, 40), interpolation = cv2.INTER_AREA)
                                     letterCopy = np.array(letterCopy, dtype=np.float32) / 255.0
 
-                                    # Tensorflow normal model
-                                    prediction = letters_recognition_model.predict(letterCopy[None,:,:], batch_size=1)
-                                    yClasses = prediction.argmax(axis=-1)
-                                    # letterCopy = np.reshape(letterCopy, inputShape)
+                                    # # Tensorflow normal model
+                                    # prediction = lettersRecognitionModel.predict(letterCopy[None,:,:], batch_size=1, verbose = 0)
+                                    # yClasses = prediction.argmax(axis=-1)
 
                                     # Tensorflow lite model
-                                    # prediction = lettersRecognitionModel.set_tensor(inputDetails[0]['index'], letterCopy)
-                                    # lettersRecognitionModel.invoke()
-                                    # outputData = lettersRecognitionModel.get_tensor(outputDetails[0]['index'])
-                                    # yClasses = np.argmax(outputData)
+                                    letterCopy = np.reshape(letterCopy, inputShape)
+                                    prediction = lettersRecognitionModel.set_tensor(inputDetails[0]['index'], letterCopy)
+                                    lettersRecognitionModel.invoke()
+                                    outputData = lettersRecognitionModel.get_tensor(outputDetails[0]['index'])
+                                    yClasses = np.argmax(outputData)
 
                                     finalLetters.append(''.join(letterLabels[yClasses]))
                                     cv2.putText(letter, str(letterLabels[yClasses]), (10, 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 0, 0))

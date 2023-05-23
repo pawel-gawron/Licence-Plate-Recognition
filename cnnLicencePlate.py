@@ -7,25 +7,16 @@ import os
 
 import tensorflow as tf
 
-from matplotlib.pyplot import figure, imshow, axis
 from matplotlib.image import imread
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import train_test_split
 
 from tensorflow import keras
-from tensorflow.keras import layers, models
-from tensorflow.keras.layers import Input, Conv2D, MaxPool2D, Dropout, Dense, BatchNormalization
-from tensorflow.keras.layers import Flatten
-from tensorflow.keras.models import Sequential
-
-from tensorflow.keras.models import Model
-from tensorflow.keras.preprocessing import image
-from keras.utils.np_utils import to_categorical
+from tensorflow.keras import layers
 
 import warnings
 warnings.filterwarnings('ignore')
 
-dir_path = 'archive/CNN letter Dataset'
+dir_path = 'ocrDataset/data'
 digits = sorted(os.listdir(dir_path))
 NUM_CLASSES = len(digits)
 print(digits)
@@ -86,8 +77,8 @@ data = data / 255.0
 data = data.reshape(*data.shape, 1)
 # labels = to_categorical(labels, num_classes=NUM_CLASSES)
 
-X_train, X_test, y_train, y_test = train_test_split(data, labels, shuffle=True, test_size=.3)
-X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, shuffle=True, test_size=.3)
+X_train, X_test, y_train, y_test = train_test_split(data, labels, shuffle=True, test_size=.3, random_state=42)
+X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, shuffle=True, test_size=.3, random_state=42)
 
 print("Training dataset shape: ", X_train.shape, y_train.shape)
 print("Validation dataset shape: ", X_val.shape, y_val.shape)
@@ -103,7 +94,7 @@ model.add(layers.Conv2D(64, (3, 3), activation='relu'))
 model.add(layers.Flatten())
 model.add(layers.Dense(64, activation='relu'))
 model.add(layers.Dense(10))
-model.add(layers.Dense(35, activation='softmax'))
+model.add(layers.Dense(36, activation='softmax'))
 
 model.summary()
 
@@ -123,16 +114,18 @@ history = model.fit(X_train, y_train, epochs=20, batch_size=256,
                     validation_data=(X_val, y_val),
                     callbacks=[cp_callback])
 
-# # Zapisz model w formacie TensorFlow Lite
-# converter = tf.lite.TFLiteConverter.from_keras_model(model)
+# Zapisz model w formacie TensorFlow Lite
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
 
-# # Ustaw opcje kwantyzacji
-# converter.optimizations = [tf.lite.Optimize.DEFAULT]
-# tflite_model = converter.convert()
+# Ustaw opcje kwantyzacji
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+tflite_model = converter.convert()
 
-# # Zapisz model do pliku
-# with open('model.tflite', 'wb') as f:
-#     f.write(tflite_model)
+# Zapisz model do pliku
+with open('model.tflite', 'wb') as f:
+    f.write(tflite_model)
+
+tf.lite.experimental.Analyzer.analyze(model_content=tflite_model)
 
 # Save the entire model as a SavedModel.
 model.save('content/saved_model/my_model')
