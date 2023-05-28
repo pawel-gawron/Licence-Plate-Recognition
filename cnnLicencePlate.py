@@ -93,10 +93,13 @@ model.add(layers.Conv2D(64, (3, 3), activation='relu'))
 
 model.add(layers.Flatten())
 model.add(layers.Dense(64, activation='relu'))
-model.add(layers.Dense(10))
+# model.add(layers.Dense(10))
+model.add(layers.Dropout(0.1))
 model.add(layers.Dense(36, activation='softmax'))
 
 model.summary()
+
+es_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=6)
 
 model.compile(optimizer='adam',
               loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
@@ -112,7 +115,7 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
 
 history = model.fit(X_train, y_train, epochs=20, batch_size=256,
                     validation_data=(X_val, y_val),
-                    callbacks=[cp_callback])
+                    callbacks=[cp_callback, es_callback])
 
 # Zapisz model w formacie TensorFlow Lite
 converter = tf.lite.TFLiteConverter.from_keras_model(model)

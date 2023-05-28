@@ -6,8 +6,11 @@ import cv2
 
 from processing.utils import perform_processing
 
+import time
+
 
 def main():
+    start = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument('images_dir', type=str)
     parser.add_argument('results_file', type=str)
@@ -28,6 +31,9 @@ def main():
 
     with results_file.open('w') as output_file:
         json.dump(results, output_file, indent=4)
+
+    end = time.time()
+    print(end - start)
 
 
 if __name__ == '__main__':

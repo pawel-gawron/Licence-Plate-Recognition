@@ -12,7 +12,7 @@ from tensorflow import keras
 # lettersRecognitionModel = tf.keras.models.load_model('content/saved_model/my_model')
 
 # Tensorflow lite model
-lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence Plate Recognition/model.tflite')
+lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence Plate Recognition2/model.tflite')
 lettersRecognitionModel.allocate_tensors()
 
 inputDetails = lettersRecognitionModel.get_input_details()
@@ -55,13 +55,13 @@ if __name__ == '__main__':
     path = os.path.join(path + "/train/")
 
     gaussianWindow = 7
-    gaussianDeviation = 30
+    gaussianDeviation = 35
 
-    gaussianWindow1 = 9
-    gaussianDeviation1 = 6
+    gaussianWindow1 = 7
+    gaussianDeviation1 = 1
 
-    gaussianWindow2 = 23
-    gaussianDeviation2 = 10
+    gaussianWindow2 = 21
+    gaussianDeviation2 = 11
 
     letterLabels = np.array(['0', '1', '2', '3', '4', '5', '6',
                              '7', '8', '9', 'A', 'B', 'C', 'D',
@@ -83,11 +83,11 @@ if __name__ == '__main__':
 
         # setting position of 'G' trackbar to 100
         cv2.setTrackbarPos('gw', 'image', gaussianWindow)
-        cv2.setTrackbarPos('gs', 'image', gaussianDeviation)
+        cv2.setTrackbarPos('gs', 'image', int(gaussianDeviation))
         cv2.setTrackbarPos('gw1', 'image', gaussianWindow1)
-        cv2.setTrackbarPos('gs1', 'image', gaussianDeviation1)
+        cv2.setTrackbarPos('gs1', 'image', int(gaussianDeviation1))
         cv2.setTrackbarPos('gw2', 'image', gaussianWindow2)
-        cv2.setTrackbarPos('gs2', 'image', gaussianDeviation2)
+        cv2.setTrackbarPos('gs2', 'image', int(gaussianDeviation2))
 
         while True:
             image = cv2.imread(imageName)
@@ -224,7 +224,7 @@ if __name__ == '__main__':
                             for i in range(len(contoursPlate)):
                                 xPlate ,yPlate, wPlate, hPlate = cv2.boundingRect(contoursPlate[i])
 
-                                if hPlate > dst.shape[0]/3 and wPlate < dst.shape[1]/3:
+                                if hPlate > dst.shape[0]/2 and wPlate < dst.shape[1]/4:
                                     letter = dst[yPlate:yPlate+hPlate, xPlate:xPlate+wPlate].copy()
                                     # letter= cv2.copyMakeBorder(letter,5,5,5,5,cv2.BORDER_CONSTANT,value=black_padding)
 
