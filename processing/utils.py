@@ -12,7 +12,7 @@ from tensorflow import keras
 # lettersRecognitionModel = tf.keras.models.load_model('content/saved_model/my_model')
 
 # Tensorflow lite model
-lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence Plate Recognition/model.tflite')
+lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence-Plate-Recognition/model.tflite')
 lettersRecognitionModel.allocate_tensors()
 
 inputDetails = lettersRecognitionModel.get_input_details()
@@ -23,7 +23,7 @@ def perform_processing(image: np.ndarray) -> str:
     # print(f'image.shape: {image.shape}')
 
     gaussianWindow = 7
-    gaussianDeviation = 3.5
+    gaussianDeviation = 3.7
 
     gaussianWindow1 = 7
     gaussianDeviation1 = 0.1
@@ -56,24 +56,21 @@ def perform_processing(image: np.ndarray) -> str:
     imgBlur = cv2.GaussianBlur(imageCopy, (gaussianWindow, gaussianWindow), gaussianDeviation)
     gaussianBlur1 = cv2.GaussianBlur(imgBlur, (gaussianWindow1, gaussianWindow1), gaussianDeviation1)
     gaussianBlur2 = cv2.GaussianBlur(imgBlur, (gaussianWindow2, gaussianWindow2), gaussianDeviation2)
-    ret, thg = cv2.threshold(gaussianBlur2-gaussianBlur1, 127, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    ret, thg = cv2.threshold(gaussianBlur2-gaussianBlur1, 160, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    contours, hierarchy = cv2.findContours(thg, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+    contours, _ = cv2.findContours(thg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
     finalLetters = []
 
     for i in range(len(contours)):
 
-        if hierarchy[0][i][2] == -1:
-            continue
-
         x ,y, w, h = cv2.boundingRect(contours[i]) 
         aspectRatio = float(w/h)
-        if aspectRatio >= 1.5 and w > 0.33*widthImage and aspectRatio <= 8:          
+        if aspectRatio >= 1.5 and w > 0.33*widthImage and h < 0.6*heightImage and aspectRatio <= 8:          
             approx = cv2.approxPolyDP(contours[i], 0.05* cv2.arcLength(contours[i], True), True)
             if len(approx) == 4: 
                 area = cv2.contourArea(contours[i])
-                if area >= 10000 and area <= 100000:
+                if area >= 10000 and area <= 120000:
                     image = cv2.drawContours(image,[contours[i]],0,(255,255,0),2)
                     mask = cv2.drawContours(mask,[contours[i]],0,(255,255,0),2)
                     out[mask == 255] = image[mask == 255]
@@ -137,6 +134,8 @@ def perform_processing(image: np.ndarray) -> str:
                     finalLetters = []
                     th3 = cv2.cvtColor(th3, cv2.COLOR_GRAY2BGR)
 
+                    letterIterator = 0
+
                     for i in range(len(contoursPlate)):
                         xPlate ,yPlate, wPlate, hPlate = cv2.boundingRect(contoursPlate[i])
 
@@ -158,9 +157,35 @@ def perform_processing(image: np.ndarray) -> str:
                             outputData = lettersRecognitionModel.get_tensor(outputDetails[0]['index'])
                             yClasses = np.argmax(outputData)
 
+                            letterRecognition = letterLabels[yClasses]
+
+                            found_wrong_letter = True
+
+                            if letterIterator == 0 or letterIterator == 1:
+                                while found_wrong_letter:
+                                    found_wrong_letter = False
+                                    if letterRecognition in "1234567890":
+                                        outputData = np.delete(outputData, yClasses)
+                                        yClasses = np.argmax(outputData)
+                                        letterRecognition = letterLabels[yClasses]
+                                        found_wrong_letter = True
+
+                            found_wrong_letter = True
+
+                            if letterIterator >= 3:
+                                while found_wrong_letter:
+                                    found_wrong_letter = False
+                                    if letterRecognition in "BDIOZ":
+                                        outputData = np.delete(outputData, yClasses)
+                                        yClasses = np.argmax(outputData)
+                                        letterRecognition = letterLabels[yClasses]
+                                        found_wrong_letter = True
+
                             # print(outputData[0, yClasses])
 
                             finalLetters.append(''.join(letterLabels[yClasses]))
+
+                            letterIterator += 1
 
                     finalLetters = ''.join(map(str, finalLetters))
                     # print("finalLetters: ", finalLetters)

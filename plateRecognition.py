@@ -12,7 +12,7 @@ from tensorflow import keras
 # lettersRecognitionModel = tf.keras.models.load_model('content/saved_model/my_model')
 
 # Tensorflow lite model
-lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence Plate Recognition2/model.tflite')
+lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence-Plate-Recognition/model.tflite')
 lettersRecognitionModel.allocate_tensors()
 
 inputDetails = lettersRecognitionModel.get_input_details()
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     path = os.path.join(path + "/train/")
 
     gaussianWindow = 7
-    gaussianDeviation = 35
+    gaussianDeviation = 37
 
     gaussianWindow1 = 7
     gaussianDeviation1 = 1
@@ -75,7 +75,7 @@ if __name__ == '__main__':
         cv2.namedWindow('image', cv2.WINDOW_AUTOSIZE)
 
         cv2.createTrackbar('gw', 'image', 2, 20, empty_callback)
-        cv2.createTrackbar('gs', 'image', 0, 35, empty_callback)
+        cv2.createTrackbar('gs', 'image', 0, 55, empty_callback)
         cv2.createTrackbar('gw1', 'image', 2, 50, empty_callback)
         cv2.createTrackbar('gs1', 'image', 0, 50, empty_callback)
         cv2.createTrackbar('gw2', 'image', 2, 50, empty_callback)
@@ -126,7 +126,7 @@ if __name__ == '__main__':
             imgBlur = cv2.GaussianBlur(imageCopy, (gaussianWindow, gaussianWindow), gaussianDeviation)
             gaussianBlur1 = cv2.GaussianBlur(imgBlur, (gaussianWindow1, gaussianWindow1), gaussianDeviation1)
             gaussianBlur2 = cv2.GaussianBlur(imgBlur, (gaussianWindow2, gaussianWindow2), gaussianDeviation2)
-            ret, thg = cv2.threshold(gaussianBlur2-gaussianBlur1, 127, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            ret, thg = cv2.threshold(gaussianBlur2-gaussianBlur1, 160, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
             gaussianDeviation *= 10
             gaussianDeviation1 *= 10
@@ -134,22 +134,22 @@ if __name__ == '__main__':
 
             cv2.imshow("image", thg)
 
-            contours, hierarchy = cv2.findContours(thg, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+            contours, hierarchy = cv2.findContours(thg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
             print("len(contours): ", len(contours))
 
             for i in range(len(contours)):
 
-                if hierarchy[0][i][2] == -1:
-                    continue
+                # if hierarchy[0][i][2] == -1:
+                #     continue
 
                 x ,y, w, h = cv2.boundingRect(contours[i]) 
                 aspectRatio = float(w/h)
-                if aspectRatio >= 1.5 and w > 0.33*widthImage and aspectRatio <= 8:          
+                if aspectRatio >= 1.5 and w > 0.33*widthImage and h < 0.6*heightImage and aspectRatio <= 6:          
                     approx = cv2.approxPolyDP(contours[i], 0.05* cv2.arcLength(contours[i], True), True)
                     if len(approx) == 4: 
                         area = cv2.contourArea(contours[i])
-                        if area >= 10000 and area <= 100000:
+                        if area >= 10000 and area <= 120000:
                             image = cv2.drawContours(image,[contours[i]],0,(255,255,0),2)
                             mask = cv2.drawContours(mask,[contours[i]],0,(255,255,0),2)
                             out[mask == 255] = image[mask == 255]
@@ -221,6 +221,8 @@ if __name__ == '__main__':
                             finalLetters = []
                             th3 = cv2.cvtColor(th3, cv2.COLOR_GRAY2BGR)
 
+                            letterIterator = 0
+
                             for i in range(len(contoursPlate)):
                                 xPlate ,yPlate, wPlate, hPlate = cv2.boundingRect(contoursPlate[i])
 
@@ -242,9 +244,35 @@ if __name__ == '__main__':
                                     outputData = lettersRecognitionModel.get_tensor(outputDetails[0]['index'])
                                     yClasses = np.argmax(outputData)
 
-                                    finalLetters.append(''.join(letterLabels[yClasses]))
+                                    letterRecognition = letterLabels[yClasses]
+
+                                    found_wrong_letter = True
+
+                                    if letterIterator == 0 or letterIterator == 1:
+                                        while found_wrong_letter:
+                                            found_wrong_letter = False
+                                            if letterRecognition in "1234567890":
+                                                outputData = np.delete(outputData, yClasses)
+                                                yClasses = np.argmax(outputData)
+                                                letterRecognition = letterLabels[yClasses]
+                                                found_wrong_letter = True
+
+                                    found_wrong_letter = True
+
+                                    if letterIterator >= 3:
+                                        while found_wrong_letter:
+                                            found_wrong_letter = False
+                                            if letterRecognition in "BDIOZ":
+                                                outputData = np.delete(outputData, yClasses)
+                                                yClasses = np.argmax(outputData)
+                                                letterRecognition = letterLabels[yClasses]
+                                                found_wrong_letter = True
+
+                                    finalLetters.append(''.join(letterRecognition))
                                     cv2.putText(letter, str(letterLabels[yClasses]), (10, 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 0, 0))
                                     cv2.imshow("image crop letter: " + str(i), letter)
+
+                                    letterIterator += 1
 
                             cv2.imshow("image perspective transform", imageShow)
                             cv2.imshow("image crop", dst)
