@@ -1,3 +1,5 @@
+import time
+start = time.time()
 import argparse
 import json
 from pathlib import Path
@@ -6,11 +8,8 @@ import cv2
 
 from processing.utils import perform_processing
 
-import time
-
 
 def main():
-    start = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument('images_dir', type=str)
     parser.add_argument('results_file', type=str)
@@ -33,7 +32,7 @@ def main():
         json.dump(results, output_file, indent=4)
 
     end = time.time()
-    print(end - start)
+    # print(end - start)
 
 
 if __name__ == '__main__':
