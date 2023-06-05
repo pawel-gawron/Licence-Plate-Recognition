@@ -11,8 +11,14 @@ from tensorflow import keras
 # # Tensorflow normal model
 # lettersRecognitionModel = tf.keras.models.load_model('content/saved_model/my_model')
 
+localization = os.path.abspath(os.path.dirname(__file__))
+master_catalog = os.path.abspath(os.path.join(localization, '..'))
+
+model_path = 'model/model.tflite'
+model_path = os.path.join(master_catalog, model_path)
+
 # Tensorflow lite model
-lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence-Plate-Recognition/model.tflite')
+lettersRecognitionModel = tf.lite.Interpreter(model_path=model_path)
 lettersRecognitionModel.allocate_tensors()
 
 inputDetails = lettersRecognitionModel.get_input_details()
@@ -30,6 +36,7 @@ def perform_processing(image: np.ndarray) -> str:
 
     gaussianWindow2 = 21
     gaussianDeviation2 = 1.1
+    IMG_WIDTH, IMG_HEIGHT = 32, 40
 
     letterLabels = np.array(['0', '1', '2', '3', '4', '5', '6',
                              '7', '8', '9', 'A', 'B', 'C', 'D',
@@ -143,7 +150,7 @@ def perform_processing(image: np.ndarray) -> str:
                             letter = dst[yPlate:yPlate+hPlate, xPlate:xPlate+wPlate].copy()
                             # letter= cv2.copyMakeBorder(letter,5,5,5,5,cv2.BORDER_CONSTANT,value=black_padding)
 
-                            letterCopy = cv2.resize(letter, (32, 40), interpolation = cv2.INTER_AREA)
+                            letterCopy = cv2.resize(letter, (IMG_WIDTH, IMG_HEIGHT), interpolation = cv2.INTER_AREA)
                             letterCopy = np.array(letterCopy, dtype=np.float32) / 255.0
 
                             # # Tensorflow normal model
@@ -164,7 +171,10 @@ def perform_processing(image: np.ndarray) -> str:
                             if letterIterator == 0 or letterIterator == 1:
                                 while found_wrong_letter:
                                     found_wrong_letter = False
-                                    if letterRecognition in "1234567890":
+                                    if letterRecognition in "0":
+                                        letterRecognition = "O"
+                                        found_wrong_letter = True
+                                    if letterRecognition in "123456789":
                                         outputData = np.delete(outputData, yClasses)
                                         yClasses = np.argmax(outputData)
                                         letterRecognition = letterLabels[yClasses]
@@ -175,7 +185,10 @@ def perform_processing(image: np.ndarray) -> str:
                             if letterIterator >= 3:
                                 while found_wrong_letter:
                                     found_wrong_letter = False
-                                    if letterRecognition in "BDIOZ":
+                                    if letterRecognition in "O":
+                                        letterRecognition = "0"
+                                        found_wrong_letter = True
+                                    if letterRecognition in "BDIZ":
                                         outputData = np.delete(outputData, yClasses)
                                         yClasses = np.argmax(outputData)
                                         letterRecognition = letterLabels[yClasses]
@@ -183,7 +196,7 @@ def perform_processing(image: np.ndarray) -> str:
 
                             # print(outputData[0, yClasses])
 
-                            finalLetters.append(''.join(letterLabels[yClasses]))
+                            finalLetters.append(''.join(letterRecognition))
 
                             letterIterator += 1
 
