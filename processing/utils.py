@@ -25,11 +25,35 @@ inputDetails = lettersRecognitionModel.get_input_details()
 outputDetails = lettersRecognitionModel.get_output_details()
 inputShape = inputDetails[0]['shape']
 
+def increase_brightness_contrast(input_img, brightness, contrast):    
+    if brightness != 0:
+        if brightness > 0:
+            shadow = brightness
+            highlight = 255
+        else:
+            shadow = 0
+            highlight = 255 + brightness
+        alpha_b = (highlight - shadow)/255
+        gamma_b = shadow
+        
+        buf = cv2.addWeighted(input_img, alpha_b, input_img, 0, gamma_b)
+    else:
+        buf = input_img.copy()
+    
+    if contrast != 0:
+        f = 131*(contrast + 127)/(127*(131-contrast))
+        alpha_c = f
+        gamma_c = 127*(1-f)
+        
+        buf = cv2.addWeighted(buf, alpha_c, buf, 0, gamma_c)
+
+    return buf
+
 def perform_processing(image: np.ndarray) -> str:
     # print(f'image.shape: {image.shape}')
 
     gaussianWindow = 7
-    gaussianDeviation = 3.7
+    gaussianDeviation = 3.5
 
     gaussianWindow1 = 7
     gaussianDeviation1 = 0.1
@@ -37,6 +61,7 @@ def perform_processing(image: np.ndarray) -> str:
     gaussianWindow2 = 21
     gaussianDeviation2 = 1.1
     IMG_WIDTH, IMG_HEIGHT = 32, 40
+    BRIGHTNESS, CONTRAST = 15, 30
 
     letterLabels = np.array(['0', '1', '2', '3', '4', '5', '6',
                              '7', '8', '9', 'A', 'B', 'C', 'D',
@@ -60,25 +85,30 @@ def perform_processing(image: np.ndarray) -> str:
     widthImage = int(imageCopy.shape[1])
     heightImage = int(imageCopy.shape[0])
 
+    imageCopy = increase_brightness_contrast(imageCopy, BRIGHTNESS, CONTRAST)
+
     imgBlur = cv2.GaussianBlur(imageCopy, (gaussianWindow, gaussianWindow), gaussianDeviation)
     gaussianBlur1 = cv2.GaussianBlur(imgBlur, (gaussianWindow1, gaussianWindow1), gaussianDeviation1)
     gaussianBlur2 = cv2.GaussianBlur(imgBlur, (gaussianWindow2, gaussianWindow2), gaussianDeviation2)
     ret, thg = cv2.threshold(gaussianBlur2-gaussianBlur1, 160, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    contours, _ = cv2.findContours(thg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    contours, hierarchy = cv2.findContours(thg, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
 
     finalLetters = []
 
     for i in range(len(contours)):
 
+        if hierarchy[0][i][2] == -1:
+                    continue
+
         x ,y, w, h = cv2.boundingRect(contours[i]) 
         aspectRatio = float(w/h)
-        if aspectRatio >= 1.5 and w > 0.33*widthImage and h < 0.6*heightImage and aspectRatio <= 8:          
+        if aspectRatio >= 1.5 and w > 0.33*widthImage and h < 0.6*heightImage and aspectRatio <= 6:          
             approx = cv2.approxPolyDP(contours[i], 0.05* cv2.arcLength(contours[i], True), True)
             if len(approx) == 4: 
                 area = cv2.contourArea(contours[i])
                 if area >= 10000 and area <= 120000:
-                    image = cv2.drawContours(image,[contours[i]],0,(255,255,0),2)
+                    image = cv2.drawContours(image.copy(),[contours[i]],0,(255,255,0),2)
                     mask = cv2.drawContours(mask,[contours[i]],0,(255,255,0),2)
                     out[mask == 255] = image[mask == 255]
 
@@ -122,13 +152,14 @@ def perform_processing(image: np.ndarray) -> str:
                         pointsDict[point] = minRmsd
 
                     points = np.array([pointsDict[0], pointsDict[1], pointsDict[2], pointsDict[3]])
-                    pts1 = np.float32([points[0], points[1], points[2], points[3]])
+                    # pts1 = np.float32([points[0], points[1], points[2], points[3]])
+                    pts1 = np.float32([np.subtract(points[0], [0, 0]), np.subtract(points[1], [0, 0]), np.subtract(points[2], [0, 0]), np.subtract(points[3], [0, 0])])
                     pts2 = np.float32([[0,0],[widthImageShow,0],[0,heightImageShow],[widthImageShow,heightImageShow]])
                     M = cv2.getPerspectiveTransform(pts1,pts2)
                     dst = cv2.warpPerspective(image[topy:bottomy+1, topx:bottomx+1],M,(widthImageShow,heightImageShow))
 
                     dst = cv2.cvtColor(dst, cv2.COLOR_BGR2GRAY)
-                    ret3,th3 = cv2.threshold(dst,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+                    ret3,th3 = cv2.threshold(dst,100,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
 
                     contoursPlate, hierarchyPlate = cv2.findContours(th3, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
@@ -198,15 +229,26 @@ def perform_processing(image: np.ndarray) -> str:
 
                             finalLetters.append(''.join(letterRecognition))
 
+                            # cv2.putText(letter, str(letterLabels[yClasses]), (10, 10), cv2.FONT_HERSHEY_COMPLEX, 0.5, (255, 0, 0))
+                            # cv2.imshow("image crop letter: " + str(i), letter)
+
                             letterIterator += 1
 
+                    # cv2.imshow("image perspective transform", imageShow)
+                    # cv2.imshow("image crop", dst)
                     finalLetters = ''.join(map(str, finalLetters))
                     # print("finalLetters: ", finalLetters)
-
-    if len(finalLetters) >= 7:
-
-        return finalLetters
     # cv2.imshow("image final", image)
+
+                    if len(finalLetters) >= 7:
+
+                        return finalLetters
+    if len(finalLetters) == 0:
+
+        return "PO77777"
+
+
+# # cv2.imshow("image final", image)
 
     # cv2.waitKey(0)
         

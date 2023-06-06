@@ -12,7 +12,7 @@ from tensorflow import keras
 # lettersRecognitionModel = tf.keras.models.load_model('content/saved_model/my_model')
 
 # Tensorflow lite model
-lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence-Plate-Recognition/model.tflite')
+lettersRecognitionModel = tf.lite.Interpreter(model_path='/home/pawel/Documents/RISA/sem1/SW/Licence-Plate-Recognition/model/model.tflite')
 lettersRecognitionModel.allocate_tensors()
 
 inputDetails = lettersRecognitionModel.get_input_details()
@@ -25,8 +25,35 @@ inputShape = inputDetails[0]['shape']
 # letters_recognition_model.summary()
 # np.testing.assert_allclose(letters_recognition_model(input_arr), outputs)
 
+BRIGHTNESS = 15
+CONTRAST = 30
+
 def empty_callback(value):
     pass
+
+def increase_brightness_contrast(input_img, brightness, contrast):    
+    if brightness != 0:
+        if brightness > 0:
+            shadow = brightness
+            highlight = 255
+        else:
+            shadow = 0
+            highlight = 255 + brightness
+        alpha_b = (highlight - shadow)/255
+        gamma_b = shadow
+        
+        buf = cv2.addWeighted(input_img, alpha_b, input_img, 0, gamma_b)
+    else:
+        buf = input_img.copy()
+    
+    if contrast != 0:
+        f = 131*(contrast + 127)/(127*(131-contrast))
+        alpha_c = f
+        gamma_c = 127*(1-f)
+        
+        buf = cv2.addWeighted(buf, alpha_c, buf, 0, gamma_c)
+
+    return buf
 
 def on_blockSize_trackbar(val, name):
     global blockSize
@@ -53,16 +80,19 @@ def detect():
 if __name__ == '__main__':
     path = os.path.dirname(os.path.realpath(__file__))
     path = os.path.join(path + "/train/")
+    path = "/home/pawel/Documents/RISA/sem1/SW/Licence-Plate-Recognition/train/"
 
     gaussianWindow = 7
-    gaussianDeviation = 37
+    gaussianDeviation = 35
 
     gaussianWindow1 = 7
     gaussianDeviation1 = 1
 
     gaussianWindow2 = 21
     gaussianDeviation2 = 11
-    IMG_WIDTH, IMG_HEIGHT = 60, 60
+
+    kernel = 3
+    IMG_WIDTH, IMG_HEIGHT = 32, 40
 
     letterLabels = np.array(['0', '1', '2', '3', '4', '5', '6',
                              '7', '8', '9', 'A', 'B', 'C', 'D',
@@ -81,6 +111,7 @@ if __name__ == '__main__':
         cv2.createTrackbar('gs1', 'image', 0, 50, empty_callback)
         cv2.createTrackbar('gw2', 'image', 2, 50, empty_callback)
         cv2.createTrackbar('gs2', 'image', 0, 50, empty_callback)
+        cv2.createTrackbar('kernel', 'image', 3, 50, empty_callback)
 
         # setting position of 'G' trackbar to 100
         cv2.setTrackbarPos('gw', 'image', gaussianWindow)
@@ -89,6 +120,7 @@ if __name__ == '__main__':
         cv2.setTrackbarPos('gs1', 'image', int(gaussianDeviation1))
         cv2.setTrackbarPos('gw2', 'image', gaussianWindow2)
         cv2.setTrackbarPos('gs2', 'image', int(gaussianDeviation2))
+        cv2.setTrackbarPos('kernel', 'image', int(kernel))
 
         while True:
             image = cv2.imread(imageName)
@@ -97,6 +129,7 @@ if __name__ == '__main__':
 
             dim = (900, int(900 / imageRatio))
             dim = (960, 720)
+            dim = (960, int(960 / imageRatio))
 
             print("image_ratio: ", imageRatio)
 
@@ -106,6 +139,8 @@ if __name__ == '__main__':
             gaussianDeviation1 = cv2.getTrackbarPos('gs1', 'image')
             gaussianWindow2 = on_blockSize_trackbar(cv2.getTrackbarPos('gw2', 'image'), 'gw2')
             gaussianDeviation2 = cv2.getTrackbarPos('gs2', 'image')
+
+            kernel = on_blockSize_trackbar(cv2.getTrackbarPos('kernel', 'image'), 'kernel')
 
             gaussianDeviation /= 10
             gaussianDeviation1 /= 10
@@ -124,6 +159,8 @@ if __name__ == '__main__':
             widthImage = int(imageCopy.shape[1])
             heightImage = int(imageCopy.shape[0])
 
+            imageCopy = increase_brightness_contrast(imageCopy, BRIGHTNESS, CONTRAST)
+
             imgBlur = cv2.GaussianBlur(imageCopy, (gaussianWindow, gaussianWindow), gaussianDeviation)
             gaussianBlur1 = cv2.GaussianBlur(imgBlur, (gaussianWindow1, gaussianWindow1), gaussianDeviation1)
             gaussianBlur2 = cv2.GaussianBlur(imgBlur, (gaussianWindow2, gaussianWindow2), gaussianDeviation2)
@@ -135,14 +172,14 @@ if __name__ == '__main__':
 
             cv2.imshow("image", thg)
 
-            contours, hierarchy = cv2.findContours(thg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            contours, hierarchy = cv2.findContours(thg, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
 
             print("len(contours): ", len(contours))
 
             for i in range(len(contours)):
 
-                # if hierarchy[0][i][2] == -1:
-                #     continue
+                if hierarchy[0][i][2] == -1:
+                    continue
 
                 x ,y, w, h = cv2.boundingRect(contours[i]) 
                 aspectRatio = float(w/h)
@@ -151,7 +188,7 @@ if __name__ == '__main__':
                     if len(approx) == 4: 
                         area = cv2.contourArea(contours[i])
                         if area >= 10000 and area <= 120000:
-                            image = cv2.drawContours(image,[contours[i]],0,(255,255,0),2)
+                            image = cv2.drawContours(image.copy(),[contours[i]],0,(255,255,0),2)
                             mask = cv2.drawContours(mask,[contours[i]],0,(255,255,0),2)
                             out[mask == 255] = image[mask == 255]
                             # print("contours[i]: ", contours[i])
@@ -200,13 +237,14 @@ if __name__ == '__main__':
                             print("points_dict: ", pointsDict)
 
                             points = np.array([pointsDict[0], pointsDict[1], pointsDict[2], pointsDict[3]])
-                            pts1 = np.float32([points[0], points[1], points[2], points[3]])
+                            pts1 = np.float32([np.subtract(points[0], [0, 0]), np.subtract(points[1], [0, 0]), np.subtract(points[2], [0, 0]), np.subtract(points[3], [0, 0])])
                             pts2 = np.float32([[0,0],[widthImageShow,0],[0,heightImageShow],[widthImageShow,heightImageShow]])
                             M = cv2.getPerspectiveTransform(pts1,pts2)
                             dst = cv2.warpPerspective(image[topy:bottomy+1, topx:bottomx+1],M,(widthImageShow,heightImageShow))
 
                             dst = cv2.cvtColor(dst, cv2.COLOR_BGR2GRAY)
-                            ret3,th3 = cv2.threshold(dst,0,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+                            ret3,th3 = cv2.threshold(dst,100,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+                            cv2.imshow("plate threshold: ", th3)
 
                             blackPadding = [0,0,0]
                             # th3= cv2.copyMakeBorder(th3,10,10,10,10,cv2.BORDER_CONSTANT,value=black_padding)
@@ -239,6 +277,7 @@ if __name__ == '__main__':
                                     # yClasses = prediction.argmax(axis=-1)
 
                                     # Tensorflow lite model
+                                    print("letterCopy: ", letterCopy.shape)
                                     letterCopy = np.reshape(letterCopy, inputShape)
                                     prediction = lettersRecognitionModel.set_tensor(inputDetails[0]['index'], letterCopy)
                                     lettersRecognitionModel.invoke()
