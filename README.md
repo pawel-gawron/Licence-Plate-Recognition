@@ -9,12 +9,13 @@ Projekt ma na celu identyfikację znaków na blachach rejestracyjnych. W celu os
 4. Definiowanie funkcji perform_processing, która wykonuje przetwarzanie obrazu.
 5. Zdefiniowanie banku cech (zakresów jasności i kontrastu) dla przetwarzania obrazu.
 6. Określenie parametrów dla filtrów Gaussa oraz rozmiaru docelowego obrazu.
-7. Wczytanie obrazu, zmiana jego rozmiaru i konwersja do odcieni szarości.
-8. Iteracja po banku cech i stosowanie filtrów Gaussa oraz progowania do wyodrębnienia znaków.
-9. Wykrywanie konturów i filtracja znalezionych obszarów na podstawie kryteriów takich jak proporcje i powierzchnia.
-10. Transformacja perspektywiczna dla znalezionych obszarów i zamiana ich na obrazy czarno-białe.
-11. Wykrywanie pojedynczych liter w znalezionych obszarach i klasyfikacja za pomocą modelu uczenia maszynowego.
-12. Złożenie identyfikowanych liter w jeden ciąg i zwrócenie wynikowego tekstu.
+7. Do podkreślenia krawędzi z obrazu wykorzystano odejmowanie kopii obrazu z różnymi filtrami Gaussa.
+8. Wczytanie obrazu, zmiana jego rozmiaru i konwersja do odcieni szarości.
+9. Iteracja po banku cech i stosowanie filtrów Gaussa oraz progowania do wyodrębnienia znaków.
+10. Wykrywanie konturów i filtracja znalezionych obszarów na podstawie kryteriów takich jak proporcje i powierzchnia.
+11. Transformacja perspektywiczna dla znalezionych obszarów i zamiana ich na obrazy czarno-białe.
+12. Wykrywanie pojedynczych liter w znalezionych obszarach i klasyfikacja za pomocą modelu uczenia maszynowego.
+13. Złożenie identyfikowanych liter w jeden ciąg i zwrócenie wynikowego tekstu.
 
 ## Model uczenia maszynowego rozpoznający znaki
 1. Wykorzystano model tf2lite aby skrócić czas ładowania.
